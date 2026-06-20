@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise Clínica · Mari Nutrição</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --verde:    #55675B;
+    --verde-lt: #8a9e93;
+    --rosa:     #D7B5AB;
+    --rose:     #ECDFD9;
+    --cinza:    #EEEEEE;
+    --branco:   #FAFAF8;
+    --texto:    #2c2c2a;
+    --texto-lt: #6b6b68;
+    --borda:    #ddd5cf;
+    --radius:   12px;
+    --shadow:   0 2px 12px rgba(85,103,91,.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', serif; background: var(--rose); color: var(--texto); min-height: 100vh; }
+
+  header { background: var(--verde); padding: 28px 40px 24px; display: flex; align-items: flex-end; gap: 20px; }
+  .header-logo { width: 48px; height: 48px; border-radius: 50%; background: var(--rosa); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .header-text h1 { font-size: 1.5rem; font-weight: normal; color: var(--rose); letter-spacing: .02em; }
+  .header-text p { font-family: 'Helvetica Neue', sans-serif; font-size: .78rem; color: var(--rosa); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+
+  .tabs { background: var(--verde); padding: 0 40px; display: flex; gap: 4px; border-bottom: 2px solid rgba(255,255,255,.08); }
+  .tab-btn { font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; letter-spacing: .05em; text-transform: uppercase; color: var(--rosa); background: none; border: none; padding: 14px 22px 12px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .2s, border-color .2s; }
+  .tab-btn:hover { color: var(--branco); }
+  .tab-btn.active { color: var(--branco); border-bottom-color: var(--rosa); }
+
+  main { padding: 40px; max-width: 960px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .upload-card { background: var(--branco); border: 2px dashed var(--borda); border-radius: var(--radius); padding: 48px 32px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+  .upload-card:hover, .upload-card.drag { border-color: var(--verde); background: #f5f0ed; }
+  .upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2.2rem; margin-bottom: 12px; }
+  .upload-card h2 { font-size: 1.1rem; font-weight: normal; color: var(--verde); margin-bottom: 6px; }
+  .upload-card p { font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; color: var(--texto-lt); }
+  .file-name { margin-top: 14px; font-family: 'Helvetica Neue', sans-serif; font-size: .85rem; color: var(--verde); font-weight: 600; }
+
+  .btn-analisar { display: block; width: 100%; margin-top: 20px; padding: 16px; background: var(--verde); color: var(--branco); border: none; border-radius: var(--radius); font-family: 'Helvetica Neue', sans-serif; font-size: .9rem; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: opacity .2s; }
+  .btn-analisar:hover { opacity: .88; }
+  .btn-analisar:disabled { opacity: .45; cursor: not-allowed; }
+
+  .loader { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 48px; }
+  .loader.show { display: flex; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--borda); border-top-color: var(--verde); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader p { font-family: 'Helvetica Neue', sans-serif; font-size: .85rem; color: var(--texto-lt); }
+
+  .resultado { margin-top: 32px; }
+  .secao-titulo { font-family: 'Helvetica Neue', sans-serif; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-lt); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--borda); }
+
+  .ficha-topo { background: var(--verde); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+  .ficha-topo h3 { font-size: 1.4rem; font-weight: normal; color: var(--rose); margin-bottom: 4px; }
+  .ficha-topo .sub { font-family: 'Helvetica Neue', sans-serif; font-size: .78rem; color: var(--rosa); margin-bottom: 20px; }
+  .grid-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { background: rgba(255,255,255,.12); border-radius: 20px; padding: 5px 14px; font-family: 'Helvetica Neue', sans-serif; font-size: .8rem; color: var(--rose); }
+  .chip b { color: var(--rosa); margin-right: 4px; }
+
+  .secao-card { background: var(--branco); border-radius: var(--radius); padding: 24px 28px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .secao-card h4 { font-family: 'Helvetica Neue', sans-serif; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--verde); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--cinza); }
+
+  .item-qa { margin-bottom: 14px; }
+  .item-qa:last-child { margin-bottom: 0; }
+  .item-pergunta { font-family: 'Helvetica Neue', sans-serif; font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-lt); margin-bottom: 3px; }
+  .item-resposta { font-family: 'Helvetica Neue', sans-serif; font-size: .9rem; color: var(--texto); line-height: 1.5; }
+  .item-resposta.destaque { color: var(--verde); font-weight: 600; }
+  .item-resposta.alerta { color: #8b2a3a; font-weight: 600; }
+
+  .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .tag { background: var(--rose); border: 1px solid var(--borda); border-radius: 16px; padding: 3px 12px; font-family: 'Helvetica Neue', sans-serif; font-size: .78rem; color: var(--texto); }
+  .tag.verde { background: #e6f4ec; border-color: #b8e4c4; color: #1a5c33; }
+  .tag.rosa { background: #fde8e8; border-color: #f4bfcd; color: #8b2a3a; }
+  .tag.amarelo { background: #fef8e1; border-color: #f5d98a; color: #7a5f00; }
+
+  /* bristol visual */
+  .bristol-badge { display: inline-block; padding: 4px 16px; border-radius: 20px; font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; font-weight: 700; }
+
+  /* EXAMES */
+  .legenda { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-family: 'Helvetica Neue', sans-serif; font-size: .74rem; color: var(--texto-lt); }
+  .secao-exames { margin-bottom: 28px; }
+  .secao-exames h4 { font-family: 'Helvetica Neue', sans-serif; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-lt); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--borda); }
+  table { width: 100%; border-collapse: collapse; background: var(--branco); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); font-family: 'Helvetica Neue', sans-serif; font-size: .84rem; margin-bottom: 8px; }
+  thead th { background: var(--verde); color: var(--branco); padding: 11px 14px; text-align: left; font-weight: normal; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
+  tbody tr { border-bottom: 1px solid var(--cinza); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 11px 14px; vertical-align: middle; color: var(--texto); }
+  .exame-nome { font-weight: 600; }
+  .ref { color: var(--texto-lt); font-size: .78rem; }
+  .resultado-val { font-weight: 700; font-size: .95rem; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+  .badge-Q1 { background: #b8d4e8; color: #1a4a6e; }
+  .badge-Q2 { background: #b8e4c4; color: #1a5c33; }
+  .badge-Q3 { background: #b8e4c4; color: #1a5c33; }
+  .badge-Q4 { background: #f5d98a; color: #7a5f00; }
+  .badge-BAIXO { background: #f4bfcd; color: #8b2a3a; }
+  .badge-ALTO { background: #f4a0a0; color: #7a1a1a; }
+  .badge-T1 { background: #b8d4e8; color: #1a4a6e; }
+  .badge-T2 { background: #b8e4c4; color: #1a5c33; }
+  .badge-T3 { background: #f5d98a; color: #7a5f00; }
+  .barra-wrap { display: flex; align-items: center; gap: 6px; }
+  .barra-bg { flex: 1; height: 6px; background: var(--cinza); border-radius: 4px; min-width: 60px; }
+  .barra-fill { height: 100%; border-radius: 4px; background: var(--verde); }
+  .barra-fill.fora-baixo { background: #e88fa0; }
+  .barra-fill.fora-alto { background: #e85555; }
+
+  .input-manual { background: var(--branco); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); margin-top: 20px; }
+  .input-manual h3 { font-size: 1rem; font-weight: normal; color: var(--verde); margin-bottom: 6px; }
+  .input-manual p { font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; color: var(--texto-lt); margin-bottom: 20px; }
+  .exame-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .exame-row input { padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; color: var(--texto); background: var(--cinza); width: 100%; }
+  .exame-row input:focus { outline: none; border-color: var(--verde); background: var(--branco); }
+  .btn-rm { background: none; border: none; color: var(--rosa); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+  .row-labels { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 6px; }
+  .row-labels span { font-family: 'Helvetica Neue', sans-serif; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--texto-lt); padding: 0 10px; }
+  .btn-add-exame { margin-top: 8px; padding: 10px 20px; background: none; border: 1px dashed var(--borda); border-radius: 8px; font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; color: var(--verde-lt); cursor: pointer; transition: all .2s; width: 100%; text-align: left; }
+  .btn-add-exame:hover { border-color: var(--verde); color: var(--verde); background: #f5f0ed; }
+  .btn-calcular { display: block; width: 100%; margin-top: 20px; padding: 14px; background: var(--rosa); color: var(--verde); border: none; border-radius: var(--radius); font-family: 'Helvetica Neue', sans-serif; font-size: .88rem; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; font-weight: 700; transition: opacity .2s; }
+  .btn-calcular:hover { opacity: .85; }
+
+  .erro { background: #fde8e8; border-radius: var(--radius); padding: 20px 24px; margin-top: 24px; font-family: 'Helvetica Neue', sans-serif; font-size: .88rem; color: #8b1a1a; display: none; }
+  .erro.show { display: block; }
+  .aviso { background: #fef8e1; border-radius: var(--radius); padding: 14px 18px; font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; color: #7a5f00; margin-bottom: 16px; display: none; }
+  .aviso.show { display: block; }
+
+  footer { text-align: center; padding: 32px; font-family: 'Helvetica Neue', sans-serif; font-size: .74rem; color: var(--texto-lt); }
+
+  @media (max-width: 640px) {
+    header { padding: 20px; }
+    .tabs { padding: 0 16px; }
+    main { padding: 20px 16px; }
+    .exame-row { grid-template-columns: 1fr 1fr; }
+    .exame-row input:first-child { grid-column: 1/-1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">🌿</div>
+  <div class="header-text">
+    <h1>Consultório da Mari</h1>
+    <p>Análise Clínica · Nutrição</p>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="trocarAba('formulario',this)">Formulário Pré-consulta</button>
+  <button class="tab-btn" onclick="trocarAba('exames',this)">Exames Laboratoriais</button>
+</div>
+
+<main>
+
+  <!-- ABA FORMULÁRIO -->
+  <div id="tab-formulario" class="tab-panel active">
+    <div class="upload-card" id="drop-form"
+         ondragover="dragOver(event,'drop-form')" ondragleave="dragLeave('drop-form')"
+         ondrop="dropFile(event,'drop-form','input-form','nome-form','btn-form')">
+      <input type="file" id="input-form" accept=".pdf"
+             onchange="arquivoSelecionado(this,'nome-form','btn-form')">
+      <div class="upload-icon">📋</div>
+      <h2>Envie o formulário de pré-consulta</h2>
+      <p>PDF exportado do Google Forms · clique ou arraste aqui</p>
+      <div class="file-name" id="nome-form"></div>
+    </div>
+    <button class="btn-analisar" id="btn-form" onclick="processarFormulario()" disabled>Processar Formulário</button>
+    <div class="loader" id="loader-form"><div class="spinner"></div><p>Lendo PDF…</p></div>
+    <div class="erro" id="erro-form"></div>
+    <div class="aviso" id="aviso-form"></div>
+    <div class="resultado" id="resultado-form"></div>
+  </div>
+
+  <!-- ABA EXAMES -->
+  <div id="tab-exames" class="tab-panel">
+    <div class="upload-card" id="drop-exm"
+         ondragover="dragOver(event,'drop-exm')" ondragleave="dragLeave('drop-exm')"
+         ondrop="dropFile(event,'drop-exm','input-exm','nome-exm','btn-exm')">
+      <input type="file" id="input-exm" accept=".pdf"
+             onchange="arquivoSelecionado(this,'nome-exm','btn-exm')">
+      <div class="upload-icon">🔬</div>
+      <h2>Envie o laudo laboratorial</h2>
+      <p>PDF · clique ou arraste aqui</p>
+      <div class="file-name" id="nome-exm"></div>
+    </div>
+    <button class="btn-analisar" id="btn-exm" onclick="processarExames()" disabled>Processar Exames</button>
+    <div class="loader" id="loader-exm"><div class="spinner"></div><p>Lendo laudo…</p></div>
+    <div class="erro" id="erro-exm"></div>
+    <div class="aviso" id="aviso-exm"></div>
+    <div class="resultado" id="resultado-exm"></div>
+
+    <div class="input-manual" id="manual-exames" style="display:none">
+      <h3>Inserir exames manualmente</h3>
+      <p>Preencha nome, resultado, referência mínima, máxima e unidade.</p>
+      <div class="row-labels">
+        <span>Exame</span><span>Resultado</span><span>Ref. Mín</span><span>Ref. Máx</span><span>Unidade</span><span></span>
+      </div>
+      <div id="lista-exames"></div>
+      <button class="btn-add-exame" onclick="adicionarLinha()">+ Adicionar exame</button>
+      <button class="btn-calcular" onclick="calcularManual()">Calcular Quartis / Tercis</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>Uso clínico exclusivo · Mari Nutrição</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── TABS ────────────────────────────────────────────────────────
+function trocarAba(aba, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + aba).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── UPLOAD ──────────────────────────────────────────────────────
+function arquivoSelecionado(input, nomeId, btnId) {
+  const f = input.files[0]; if (!f) return;
+  document.getElementById(nomeId).textContent = '📎 ' + f.name;
+  document.getElementById(btnId).disabled = false;
+}
+function dragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag'); }
+function dragLeave(id) { document.getElementById(id).classList.remove('drag'); }
+function dropFile(e, dropId, inputId, nomeId, btnId) {
+  e.preventDefault(); dragLeave(dropId);
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  const dt = new DataTransfer(); dt.items.add(f);
+  const input = document.getElementById(inputId);
+  input.files = dt.files;
+  arquivoSelecionado(input, nomeId, btnId);
+}
+
+// ── LER PDF ─────────────────────────────────────────────────────
+async function lerPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let texto = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Preserva quebras de linha por posição Y
+    let lastY = null;
+    for (const item of content.items) {
+      if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) texto += '\n';
+      texto += item.str;
+      lastY = item.transform[5];
+    }
+    texto += '\n---PAGE---\n';
+  }
+  return texto.trim();
+}
+
+function mostrarErro(id, msg) { const el = document.getElementById(id); el.textContent = '⚠️ ' + msg; el.classList.add('show'); }
+function limparErro(id) { document.getElementById(id).classList.remove('show'); }
+
+// ══════════════════════════════════════════════════════════════
+// FORMULÁRIO — parser orientado a perguntas do Forms
+// ══════════════════════════════════════════════════════════════
+
+// Mapa de perguntas conhecidas do formulário da Mari
+// Cada entrada: { chave, pergunta (fragmento para detectar), secao }
+const PERGUNTAS = [
+  // DADOS PESSOAIS
+  { k:'nome',         frag:'nome completo',          sec:'dados'      },
+  { k:'nascimento',   frag:'data de nascimento',     sec:'dados'      },
+  { k:'email',        frag:'e-mail',                 sec:'dados'      },
+  { k:'celular',      frag:'celular',                sec:'dados'      },
+  { k:'profissao',    frag:'profissão',              sec:'dados'      },
+  { k:'endereco',     frag:'endereço',               sec:'dados'      },
+  { k:'peso_altura',  frag:'peso e altura',          sec:'dados'      },
+  { k:'gordura',      frag:'gordura',                sec:'dados'      },
+  { k:'nutri_antes',  frag:'consultou com um nutri', sec:'dados'      },
+  // OBJETIVOS
+  { k:'motivo',       frag:'decidiu mudar',          sec:'objetivos'  },
+  { k:'objetivo',     frag:'objetivo que te trouxe', sec:'objetivos'  },
+  { k:'dificuldades', frag:'impediu até hoje',       sec:'objetivos'  },
+  // COMPORTAMENTO
+  { k:'comportamento',frag:'comportamento alimentar',sec:'rotina'     },
+  { k:'trabalho',     frag:'você trabalha',          sec:'rotina'     },
+  { k:'atividade',    frag:'ativo',                  sec:'rotina'     },
+  { k:'ativ_fisica',  frag:'atividade física',       sec:'rotina'     },
+  { k:'geladeira',    frag:'geladeira',              sec:'rotina'     },
+  { k:'prepara',      frag:'prepara',                sec:'rotina'     },
+  { k:'ambiente',     frag:'ambiente familiar',      sec:'rotina'     },
+  // SAÚDE
+  { k:'hist_familia', frag:'histórico na família',   sec:'saude'      },
+  { k:'doenca',       frag:'doença crônica',         sec:'saude'      },
+  { k:'intolerancia', frag:'intolerância ou alergia',sec:'saude'      },
+  { k:'gases',        frag:'constipado',             sec:'saude'      },
+  { k:'alcool',       frag:'bebida alcoólica',       sec:'saude'      },
+  { k:'fumante',      frag:'fumante',                sec:'saude'      },
+  { k:'sono',         frag:'sono',                   sec:'saude'      },
+  { k:'medicamento',  frag:'medicamento',            sec:'saude'      },
+  { k:'antiacido',    frag:'antiácido',              sec:'saude'      },
+  { k:'intestino',    frag:'intestino',              sec:'saude'      },
+  { k:'fezes',        frag:'fezes',                  sec:'saude'      },
+  // ALIMENTAR
+  { k:'beliscar',     frag:'beliscar',               sec:'alimentar'  },
+  { k:'preferencia',  frag:'preferências alimentares',sec:'alimentar' },
+  { k:'nao_gosta',    frag:'não goste',              sec:'alimentar'  },
+  { k:'fome',         frag:'mais fome',              sec:'alimentar'  },
+  { k:'frutas',       frag:'frutas',                 sec:'alimentar'  },
+  { k:'agua',         frag:'consumo de água',        sec:'alimentar'  },
+  { k:'rotina_diet',  frag:'rotina alimentar',       sec:'alimentar'  },
+  { k:'fds',          frag:'finais de semana',       sec:'alimentar'  },
+  { k:'suplemento',   frag:'suplemento',             sec:'alimentar'  },
+  // PERFIL
+  { k:'metas',        frag:'metas',                  sec:'perfil'     },
+  { k:'estilo',       frag:'estilo que mais se apro',sec:'perfil'     },
+  { k:'comprometimento',frag:'comprometido',         sec:'perfil'     },
+  { k:'expectativa',  frag:'espera do nosso',        sec:'perfil'     },
+];
+
+const SECOES_META = {
+  dados:     { titulo: '👤 Dados Pessoais',        icon: '👤' },
+  objetivos: { titulo: '🎯 Objetivos',              icon: '🎯' },
+  rotina:    { titulo: '🏃 Rotina e Estilo de Vida',icon: '🏃' },
+  saude:     { titulo: '🏥 Histórico de Saúde',    icon: '🏥' },
+  alimentar: { titulo: '🥗 Hábitos Alimentares',   icon: '🥗' },
+  perfil:    { titulo: '💬 Perfil e Comprometimento',icon:'💬'  },
+};
+
+// Linhas de ruído para ignorar
+const RUIDO = [
+  /^https?:\/\//i, /google formulários/i, /este formulário/i, /este conteúdo/i,
+  /^\d+\/\d+$/, /^---PAGE---$/, /^\s*$/, /clique aqui/i, /adicionar arquivo/i,
+  /aqui começa sua nova versão/i, /obrigada pelas suas respostas/i,
+  /nos vemos em breve/i, /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}/,
+  /escala de bristol/i, /^tipo \d$/i
+];
+
+function ehRuido(linha) {
+  return RUIDO.some(re => re.test(linha.trim()));
+}
+
+function parsearFormulario(texto) {
+  // Limpa e divide em linhas
+  const linhas = texto.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 1 && !ehRuido(l));
+
+  const campos = {};
+
+  // Para cada pergunta conhecida, tenta encontrar a resposta
+  for (let pi = 0; pi < PERGUNTAS.length; pi++) {
+    const perg = PERGUNTAS[pi];
+    const proxPerg = PERGUNTAS[pi + 1];
+
+    // Acha o índice da linha que contém o fragmento da pergunta
+    const idxPerg = linhas.findIndex(l => l.toLowerCase().includes(perg.frag));
+    if (idxPerg === -1) continue;
+
+    // Coleta resposta: linhas entre essa pergunta e a próxima
+    let idxProx = linhas.length;
+    if (proxPerg) {
+      const idxP2 = linhas.findIndex((l, i) => i > idxPerg && l.toLowerCase().includes(proxPerg.frag));
+      if (idxP2 !== -1) idxProx = idxP2;
+    }
+
+    // Pega linhas de resposta (ignora a própria linha da pergunta e o '*' no final)
+    const respostas = linhas
+      .slice(idxPerg + 1, Math.min(idxPerg + 8, idxProx))
+      .map(l => l.replace(/\*$/, '').trim())
+      .filter(l => l.length > 0 && !l.toLowerCase().includes(perg.frag));
+
+    if (respostas.length > 0) {
+      campos[perg.k] = { pergunta: perg.frag, resposta: respostas, secao: perg.sec };
+    }
+  }
+
+  return campos;
+}
+
+function bristolCor(tipo) {
+  const t = parseInt(tipo);
+  if (t <= 2) return 'background:#f4a0a0;color:#7a1a1a';
+  if (t <= 4) return 'background:#b8e4c4;color:#1a5c33';
+  return 'background:#f5d98a;color:#7a5f00';
+}
+
+function renderFormulario(campos) {
+  // Extrai dados-chave para o topo
+  const nome = (campos.nome?.resposta[0] || 'Paciente').trim();
+  const peso_altura = campos.peso_altura?.resposta[0] || '';
+  const profissao = campos.profissao?.resposta[0] || '';
+  const doenca = campos.doenca?.resposta || [];
+  const objetivo = campos.objetivo?.resposta || [];
+
+  // Monta chips do topo
+  const chips = [];
+  if (peso_altura) chips.push({ l: 'Peso/Altura', v: peso_altura });
+  if (campos.gordura?.resposta[0]) chips.push({ l: '% Gordura', v: campos.gordura.resposta[0] });
+  if (profissao) chips.push({ l: 'Profissão', v: profissao });
+  if (campos.nascimento?.resposta[0]) chips.push({ l: 'Nascimento', v: campos.nascimento.resposta[0] });
+
+  // Agrupa por seção
+  const porSecao = {};
+  Object.entries(campos).forEach(([k, v]) => {
+    if (!porSecao[v.secao]) porSecao[v.secao] = [];
+    porSecao[v.secao].push({ k, ...v });
+  });
+
+  // Labels amigáveis para cada chave
+  const LABELS = {
+    nome:'Nome', nascimento:'Data de nascimento', email:'E-mail', celular:'Celular',
+    profissao:'Profissão', endereco:'Endereço', peso_altura:'Peso e altura',
+    gordura:'% de gordura', nutri_antes:'Consultou nutricionista antes?',
+    motivo:'Por que decidiu mudar?', objetivo:'Objetivos', dificuldades:'Principais dificuldades',
+    comportamento:'Comportamento alimentar', trabalho:'Trabalho e horários',
+    atividade:'Nível de atividade', ativ_fisica:'Atividade física',
+    geladeira:'Local de trabalho (estrutura)', prepara:'Quem prepara as refeições?',
+    ambiente:'Ambiente familiar', hist_familia:'Histórico familiar',
+    doenca:'Doenças/condições', intolerancia:'Intolerâncias/alergias',
+    gases:'Alimentos problemáticos', alcool:'Álcool', fumante:'Fumante',
+    sono:'Sono', medicamento:'Medicamentos', antiacido:'Antiácidos',
+    intestino:'Funcionamento intestinal', fezes:'Tipo de fezes (Bristol)',
+    beliscar:'Beliscar', preferencia:'Preferências alimentares',
+    nao_gosta:'Não come/enjoa', fome:'Maior fome/horário', frutas:'Frutas',
+    agua:'Consumo de água', rotina_diet:'Rotina alimentar (dia típico)',
+    fds:'Fins de semana', suplemento:'Suplementos',
+    metas:'Metas', estilo:'Estilo de aprendizado', comprometimento:'Comprometimento',
+    expectativa:'Expectativas'
+  };
+
+  // Campos a destacar em verde (positivos)
+  const POSITIVOS = ['nutri_antes','geladeira','ambiente','frutas'];
+  // Campos a destacar em alerta
+  const ALERTAS = ['doenca','intolerancia','gases','sono','intestino','fezes','hist_familia'];
+
+  let secoesHTML = '';
+  ['dados','objetivos','rotina','saude','alimentar','perfil'].forEach(sec => {
+    const itens = porSecao[sec];
+    if (!itens || itens.length === 0) return;
+
+    const itensHTML = itens.map(item => {
+      const label = LABELS[item.k] || item.k;
+      const resp = item.resposta;
+      const isAlerta = ALERTAS.includes(item.k);
+      const isPositivo = POSITIVOS.includes(item.k);
+
+      // Bristol: exibe badge visual
+      if (item.k === 'fezes') {
+        const tipo = resp[0]?.replace(/\D/g, '') || '?';
+        return `<div class="item-qa">
+          <div class="item-pergunta">${label}</div>
+          <div class="item-resposta">
+            <span class="bristol-badge" style="${bristolCor(tipo)}">Tipo ${tipo}</span>
+            ${parseInt(tipo) <= 2 ? ' — Fezes ressecadas (constipação)' : parseInt(tipo) >= 5 ? ' — Fezes amolecidas' : ' — Dentro do padrão'}
+          </div>
+        </div>`;
+      }
+
+      // Resposta com múltiplas linhas → tags
+      if (resp.length > 1) {
+        const tags = resp.map(r => {
+          const cls = isAlerta ? 'rosa' : isPositivo ? 'verde' : '';
+          return `<span class="tag ${cls}">${r}</span>`;
+        }).join('');
+        return `<div class="item-qa">
+          <div class="item-pergunta">${label}</div>
+          <div class="tags-wrap">${tags}</div>
+        </div>`;
+      }
+
+      // Resposta simples
+      const cls = isAlerta ? 'alerta' : isPositivo ? 'destaque' : '';
+      return `<div class="item-qa">
+        <div class="item-pergunta">${label}</div>
+        <div class="item-resposta ${cls}">${resp[0] || '—'}</div>
+      </div>`;
+    }).join('');
+
+    secoesHTML += `
+      <div class="secao-card">
+        <h4>${SECOES_META[sec]?.titulo || sec}</h4>
+        ${itensHTML}
+      </div>`;
+  });
+
+  if (!secoesHTML) {
+    document.getElementById('aviso-form').textContent = '⚠️ Não foi possível estruturar o formulário automaticamente. Verifique se o PDF foi exportado do Google Forms com texto selecionável.';
+    document.getElementById('aviso-form').classList.add('show');
+    return;
+  }
+
+  document.getElementById('resultado-form').innerHTML = `
+    <div class="ficha-topo">
+      <h3>${nome}</h3>
+      <div class="sub">Formulário processado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+      <div class="grid-chips">
+        ${chips.map(c => `<span class="chip"><b>${c.l}</b>${c.v}</span>`).join('')}
+        ${objetivo.map(o => `<span class="chip"><b>🎯</b>${o}</span>`).join('')}
+      </div>
+    </div>
+    ${secoesHTML}
+  `;
+}
+
+async function processarFormulario() {
+  const file = document.getElementById('input-form').files[0]; if (!file) return;
+  limparErro('erro-form');
+  document.getElementById('aviso-form').classList.remove('show');
+  document.getElementById('resultado-form').innerHTML = '';
+  document.getElementById('loader-form').classList.add('show');
+  document.getElementById('btn-form').disabled = true;
+  try {
+    const texto = await lerPDF(file);
+    if (!texto || texto.length < 50) { mostrarErro('erro-form','Não foi possível extrair texto. O PDF pode ser imagem escaneada.'); return; }
+    const campos = parsearFormulario(texto);
+    renderFormulario(campos);
+  } catch(e) {
+    mostrarErro('erro-form','Erro ao ler o PDF: ' + e.message);
+  } finally {
+    document.getElementById('loader-form').classList.remove('show');
+    document.getElementById('btn-form').disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXAMES
+// ══════════════════════════════════════════════════════════════
+const TIREOIDES = ['tsh','t4 livre','t3 total','t4 total','t3 livre'];
+function parsearNum(s) { return parseFloat(String(s).replace(',','.')); }
+
+function classificar(valor, min, max, tercis) {
+  if (valor < min) return { cls:'BAIXO', pct:0 };
+  if (valor > max) return { cls:'ALTO',  pct:100 };
+  const amp = max - min; if (amp === 0) return { cls:'Q2', pct:50 };
+  const pct = ((valor - min) / amp) * 100;
+  if (tercis) {
+    if (pct <= 33.3) return { cls:'T1', pct };
+    if (pct <= 66.6) return { cls:'T2', pct };
+    return { cls:'T3', pct };
+  }
+  if (pct <= 25) return { cls:'Q1', pct };
+  if (pct <= 50) return { cls:'Q2', pct };
+  if (pct <= 75) return { cls:'Q3', pct };
+  return { cls:'Q4', pct };
+}
+
+function extrairExames(texto) {
+  const exames = [];
+  const re = /([A-ZÁÉÍÓÚÃÕ][A-ZÁÉÍÓÚÃÕa-záéíóúãõ\s\/\(\)\d-]{2,40})\s+([\d,\.]+)\s*([a-zA-Z\/µ%²]+)?\s*(?:(?:VR|Ref\.?|Referência|Reference|Valores?)[:\.]?\s*)?([\d,\.]+)\s*[-–a]\s*([\d,\.]+)/gi;
+  let m;
+  while ((m = re.exec(texto)) !== null) {
+    const nome = m[1].trim();
+    const resultado = parsearNum(m[2]);
+    const unidade = m[3] || '';
+    const refMin = parsearNum(m[4]);
+    const refMax = parsearNum(m[5]);
+    if (isNaN(resultado) || isNaN(refMin) || isNaN(refMax)) continue;
+    const tercis = TIREOIDES.some(t => nome.toLowerCase().includes(t));
+    const { cls, pct } = classificar(resultado, refMin, refMax, tercis);
+    exames.push({ nome, resultado, unidade, refMin, refMax, cls, pct });
+  }
+  return exames;
+}
+
+function renderExames(exames) {
+  const labels = { Q1:'Q1 · Inferior',Q2:'Q2',Q3:'Q3',Q4:'Q4 · Superior',BAIXO:'↓ Abaixo',ALTO:'↑ Acima',T1:'T1',T2:'T2 · Médio',T3:'T3' };
+  const foraRef = exames.filter(e => e.cls === 'BAIXO' || e.cls === 'ALTO');
+  const rows = exames.map(ex => {
+    const bc = ex.cls==='BAIXO'?'fora-baixo':ex.cls==='ALTO'?'fora-alto':'';
+    return `<tr>
+      <td class="exame-nome">${ex.nome}</td>
+      <td class="ref">${ex.refMin} – ${ex.refMax} ${ex.unidade}</td>
+      <td><span class="resultado-val">${ex.resultado}</span> <span style="color:var(--texto-lt);font-size:.78rem">${ex.unidade}</span></td>
+      <td><div class="barra-wrap"><div class="barra-bg"><div class="barra-fill ${bc}" style="width:${Math.min(100,ex.pct.toFixed(0))}%"></div></div></div></td>
+      <td><span class="badge badge-${ex.cls}">${labels[ex.cls]||ex.cls}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('resultado-exm').innerHTML = `
+    <div class="legenda">
+      <span class="leg-item"><span class="badge badge-BAIXO">↓</span>Abaixo</span>
+      <span class="leg-item"><span class="badge badge-Q1">Q1</span>Quartil inf.</span>
+      <span class="leg-item"><span class="badge badge-Q2">Q2</span>Q2</span>
+      <span class="leg-item"><span class="badge badge-Q3">Q3</span>Q3</span>
+      <span class="leg-item"><span class="badge badge-Q4">Q4</span>Quartil sup.</span>
+      <span class="leg-item"><span class="badge badge-ALTO">↑</span>Acima</span>
+      <span class="leg-item"><span class="badge badge-T1">T1</span><span class="badge badge-T2">T2</span><span class="badge badge-T3">T3</span>Tercis (tireoide)</span>
+    </div>
+    ${foraRef.length ? `<div class="secao-card" style="border-left:3px solid #f4a0a0;margin-bottom:20px">
+      <h4>⚠️ Fora da referência — ${foraRef.length} exame(s)</h4>
+      <div class="tags-wrap">${foraRef.map(e=>`<span class="tag rosa"><b>${e.nome}</b> ${e.resultado}${e.unidade} <span class="badge badge-${e.cls}" style="font-size:.65rem">${labels[e.cls]}</span></span>`).join('')}</div>
+    </div>` : '<div class="secao-card" style="border-left:3px solid #b8e4c4;margin-bottom:20px"><h4>✅ Todos os exames dentro da referência</h4></div>'}
+    <div class="secao-exames">
+      <h4>${exames.length} exame(s) detectado(s)</h4>
+      <table><thead><tr><th>Exame</th><th>Referência</th><th>Resultado</th><th style="min-width:80px">Posição</th><th>Classificação</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function processarExames() {
+  const file = document.getElementById('input-exm').files[0]; if (!file) return;
+  limparErro('erro-exm');
+  document.getElementById('aviso-exm').classList.remove('show');
+  document.getElementById('resultado-exm').innerHTML = '';
+  document.getElementById('loader-exm').classList.add('show');
+  document.getElementById('btn-exm').disabled = true;
+  try {
+    const texto = await lerPDF(file);
+    if (!texto || texto.length < 30) { mostrarManual(); return; }
+    const exames = extrairExames(texto);
+    if (exames.length === 0) {
+      document.getElementById('aviso-exm').textContent = '⚠️ Não foi possível detectar exames automaticamente. Use a entrada manual abaixo.';
+      document.getElementById('aviso-exm').classList.add('show');
+      mostrarManual();
+    } else {
+      renderExames(exames);
+    }
+  } catch(e) {
+    mostrarErro('erro-exm','Erro: ' + e.message);
+    mostrarManual();
+  } finally {
+    document.getElementById('loader-exm').classList.remove('show');
+    document.getElementById('btn-exm').disabled = false;
+  }
+}
+
+function mostrarManual() {
+  document.getElementById('manual-exames').style.display = 'block';
+  if (document.getElementById('lista-exames').children.length === 0) {
+    adicionarLinha(); adicionarLinha(); adicionarLinha();
+  }
+}
+function adicionarLinha() {
+  const div = document.createElement('div'); div.className = 'exame-row';
+  div.innerHTML = `<input type="text" placeholder="Ex: Hemoglobina"><input type="number" step="any" placeholder="Resultado"><input type="number" step="any" placeholder="Ref. Mín"><input type="number" step="any" placeholder="Ref. Máx"><input type="text" placeholder="g/dL"><button class="btn-rm" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('lista-exames').appendChild(div);
+}
+function calcularManual() {
+  const exames = [];
+  document.querySelectorAll('#lista-exames .exame-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const nome = inputs[0].value.trim();
+    const resultado = parsearNum(inputs[1].value);
+    const refMin = parsearNum(inputs[2].value);
+    const refMax = parsearNum(inputs[3].value);
+    const unidade = inputs[4].value.trim();
+    if (!nome || isNaN(resultado) || isNaN(refMin) || isNaN(refMax)) return;
+    const tercis = TIREOIDES.some(t => nome.toLowerCase().includes(t));
+    const { cls, pct } = classificar(resultado, refMin, refMax, tercis);
+    exames.push({ nome, resultado, unidade, refMin, refMax, cls, pct });
+  });
+  if (!exames.length) { alert('Preencha ao menos um exame completo.'); return; }
+  renderExames(exames);
+  document.getElementById('resultado-exm').scrollIntoView({ behavior:'smooth' });
+}
+</script>
+</body>
+</html>
