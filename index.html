@@ -80,6 +80,12 @@
   .tag.rosa { background: #fde8e8; border-color: #f4bfcd; color: #8b2a3a; }
   .tag.amarelo { background: #fef8e1; border-color: #f5d98a; color: #7a5f00; }
 
+
+  .bloco-texto { font-family: 'Helvetica Neue', sans-serif; font-size: .88rem; color: var(--texto); line-height: 1.8; white-space: pre-wrap; word-break: break-word; background: none; border: none; padding: 0; margin: 0; }
+  .btn-copiar { margin-top: 16px; padding: 8px 18px; background: var(--verde); color: var(--branco); border: none; border-radius: 8px; font-family: 'Helvetica Neue', sans-serif; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; transition: opacity .2s; }
+  .btn-copiar:hover { opacity: .85; }
+  .aviso-med { font-family: 'Helvetica Neue', sans-serif; font-size: .88rem; color: var(--texto); line-height: 1.6; }
+
   /* bristol visual */
   .bristol-badge { display: inline-block; padding: 4px 16px; border-radius: 20px; font-family: 'Helvetica Neue', sans-serif; font-size: .82rem; font-weight: 700; }
 
@@ -264,246 +270,378 @@ function mostrarErro(id, msg) { const el = document.getElementById(id); el.textC
 function limparErro(id) { document.getElementById(id).classList.remove('show'); }
 
 // ══════════════════════════════════════════════════════════════
-// FORMULÁRIO — parser orientado a perguntas do Forms
+// FORMULÁRIO — parser baseado na estrutura fixa do Google Forms da Mari
 // ══════════════════════════════════════════════════════════════
 
-// Mapa de perguntas conhecidas do formulário da Mari
-// Cada entrada: { chave, pergunta (fragmento para detectar), secao }
-const PERGUNTAS = [
-  // DADOS PESSOAIS
-  { k:'nome',         frag:'nome completo',          sec:'dados'      },
-  { k:'nascimento',   frag:'data de nascimento',     sec:'dados'      },
-  { k:'email',        frag:'e-mail',                 sec:'dados'      },
-  { k:'celular',      frag:'celular',                sec:'dados'      },
-  { k:'profissao',    frag:'profissão',              sec:'dados'      },
-  { k:'endereco',     frag:'endereço',               sec:'dados'      },
-  { k:'peso_altura',  frag:'peso e altura',          sec:'dados'      },
-  { k:'gordura',      frag:'gordura',                sec:'dados'      },
-  { k:'nutri_antes',  frag:'consultou com um nutri', sec:'dados'      },
-  // OBJETIVOS
-  { k:'motivo',       frag:'decidiu mudar',          sec:'objetivos'  },
-  { k:'objetivo',     frag:'objetivo que te trouxe', sec:'objetivos'  },
-  { k:'dificuldades', frag:'impediu até hoje',       sec:'objetivos'  },
-  // COMPORTAMENTO
-  { k:'comportamento',frag:'comportamento alimentar',sec:'rotina'     },
-  { k:'trabalho',     frag:'você trabalha',          sec:'rotina'     },
-  { k:'atividade',    frag:'ativo',                  sec:'rotina'     },
-  { k:'ativ_fisica',  frag:'atividade física',       sec:'rotina'     },
-  { k:'geladeira',    frag:'geladeira',              sec:'rotina'     },
-  { k:'prepara',      frag:'prepara',                sec:'rotina'     },
-  { k:'ambiente',     frag:'ambiente familiar',      sec:'rotina'     },
-  // SAÚDE
-  { k:'hist_familia', frag:'histórico na família',   sec:'saude'      },
-  { k:'doenca',       frag:'doença crônica',         sec:'saude'      },
-  { k:'intolerancia', frag:'intolerância ou alergia',sec:'saude'      },
-  { k:'gases',        frag:'constipado',             sec:'saude'      },
-  { k:'alcool',       frag:'bebida alcoólica',       sec:'saude'      },
-  { k:'fumante',      frag:'fumante',                sec:'saude'      },
-  { k:'sono',         frag:'sono',                   sec:'saude'      },
-  { k:'medicamento',  frag:'medicamento',            sec:'saude'      },
-  { k:'antiacido',    frag:'antiácido',              sec:'saude'      },
-  { k:'intestino',    frag:'intestino',              sec:'saude'      },
-  { k:'fezes',        frag:'fezes',                  sec:'saude'      },
-  // ALIMENTAR
-  { k:'beliscar',     frag:'beliscar',               sec:'alimentar'  },
-  { k:'preferencia',  frag:'preferências alimentares',sec:'alimentar' },
-  { k:'nao_gosta',    frag:'não goste',              sec:'alimentar'  },
-  { k:'fome',         frag:'mais fome',              sec:'alimentar'  },
-  { k:'frutas',       frag:'frutas',                 sec:'alimentar'  },
-  { k:'agua',         frag:'consumo de água',        sec:'alimentar'  },
-  { k:'rotina_diet',  frag:'rotina alimentar',       sec:'alimentar'  },
-  { k:'fds',          frag:'finais de semana',       sec:'alimentar'  },
-  { k:'suplemento',   frag:'suplemento',             sec:'alimentar'  },
-  // PERFIL
-  { k:'metas',        frag:'metas',                  sec:'perfil'     },
-  { k:'estilo',       frag:'estilo que mais se apro',sec:'perfil'     },
-  { k:'comprometimento',frag:'comprometido',         sec:'perfil'     },
-  { k:'expectativa',  frag:'espera do nosso',        sec:'perfil'     },
+// Mapeamento fixo: cada entrada define em qual página do PDF a RESPOSTA aparece,
+// a posição (índice) dentro dos blocos de resposta dessa página, o texto da pergunta
+// e a seção a que pertence.
+// O PDF do Google Forms exporta: respostas no topo da página, perguntas no final.
+
+const MAPA_PERGUNTAS = [
+  // PÁG 1 — respostas: nome, nascimento, email, celular, cpf
+  { pag:1, idx:1, pergunta:'Nome completo', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:1, idx:2, pergunta:'Data de nascimento', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:1, idx:3, pergunta:'E-mail', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:1, idx:4, pergunta:'Celular (com DDD)', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:1, idx:5, pergunta:'CPF', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  // PÁG 2 — respostas: rg, profissao, endereco, chegou, nutri_antes, nutri_certo, peso_altura
+  { pag:2, idx:0, pergunta:'RG', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:1, pergunta:'Profissão', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:2, pergunta:'Endereço e cidade', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:3, pergunta:'Como chegou até mim?', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:4, pergunta:'Já consultou com um nutricionista antes?', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:5, pergunta:'Se sim, o que deu certo e o que não deu certo durante este acompanhamento?', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false },
+  { pag:2, idx:6, pergunta:'Peso e Altura', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false, imc:true },
+  // PÁG 3 — respostas: gordura (ausente=não informado), exames (ausente=não enviado), motivo, objetivo (multi)
+  { pag:3, idx:null, pergunta:'% de gordura (caso saiba)', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false, ausente:'gordura' },
+  { pag:3, idx:null, pergunta:'Anexe aqui exames recentes', secao:'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS', multi:false, ausente:'exames' },
+  { pag:3, idx:0, pergunta:'Por que você decidiu mudar seu estilo de vida?', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  { pag:3, idx:1, pergunta:'Qual seu objetivo que te trouxe até aqui?', secao:'ROTINA E ESTILO DE VIDA', multi:true, ate:8 },
+  // PÁG 4 — respostas: dificuldades (multi), comportamento (multi), trabalho
+  { pag:4, idx:0, pergunta:'O que te impediu até hoje de alcançar estes objetivos? (quais as principais dificuldades)', secao:'ROTINA E ESTILO DE VIDA', multi:true, ate:5 },
+  { pag:4, idx:5, pergunta:'Assinale as alternativas que você mais se identifica em relação ao seu comportamento alimentar', secao:'ROTINA E ESTILO DE VIDA', multi:true, ate:12 },
+  { pag:4, idx:12, pergunta:'Você trabalha? Se sim, me conte mais sobre (qual sua profissão e seus horários)', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  // PÁG 5 — respostas: atividade (radio), ativ_fisica, geladeira, prepara, ambiente
+  { pag:5, idx:0, pergunta:'No seu dia a dia, você é mais ativo(a) ou fica grande parte do dia sentado(a)?', secao:'ROTINA E ESTILO DE VIDA', multi:false, radio:['Pouco ativo (mais sentado)','Ativo','Muito ativo'] },
+  { pag:5, idx:1, pergunta:'Você pratica alguma atividade física ou pretende começar? Se sim, qual, com que frequência e horário?', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  { pag:5, idx:2, pergunta:'No local de trabalho há geladeira, micro-ondas ou local para preparar e/ou armazenar refeições?', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  { pag:5, idx:3, pergunta:'Quem prepara ou irá preparar as refeições?', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  { pag:5, idx:4, pergunta:'Seu ambiente familiar auxilia ou atrapalha na sua adesão a um plano alimentar?', secao:'ROTINA E ESTILO DE VIDA', multi:false },
+  // PÁG 6 — respostas: hist_familia, doenca, intolerancia, gases, alcool (radio)
+  { pag:6, idx:0, pergunta:'Há histórico na família de alguma doença?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:6, idx:1, pergunta:'Você possui alguma doença crônica ou problema de saúde?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:6, idx:2, pergunta:'Você tem alguma intolerância ou alergia alimentar?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:6, idx:3, pergunta:'Tem algum alimento que te deixa constipado, te causa distensão abdominal ou excesso de gases?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:6, idx:4, pergunta:'Consome bebida alcoólica? Se sim, com qual frequência?', secao:'HISTÓRICO DE SAÚDE', multi:false, radio:['Não consumo','1 a 2x no mês','1x na semana','2 ou mais vezes na semana'] },
+  // PÁG 7 — respostas: fumante, sono (multi marcado), medicamento, reposicao
+  { pag:7, idx:0, pergunta:'Você é fumante?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:7, idx:1, pergunta:'Sobre seu sono, você considera que tem um sono com as seguintes características na maioria dos dias', secao:'HISTÓRICO DE SAÚDE', multi:true, sonoOpcoes:true },
+  { pag:7, idx:null, pergunta:'Usa algum medicamento atualmente? Qual? Se sim, liste quais usa, doses, horários, frequência e desde quando usa', secao:'HISTÓRICO DE SAÚDE', multi:false, medicamento:true },
+  { pag:7, idx:null, pergunta:'Faz reposição hormonal? Se sim, especifique', secao:'HISTÓRICO DE SAÚDE', multi:false, reposicao:true },
+  // PÁG 8 — respostas: antiacido, intestino (radio), fezes
+  { pag:8, idx:0, pergunta:'Você tem o hábito de consumir antiácidos (omeprazol, ENO, sonrisal, gastrol, bicarbonato de sódio, estomazil...)? Se sim, qual frequência?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  { pag:8, idx:1, pergunta:'Como é o funcionamento do seu intestino?', secao:'HISTÓRICO DE SAÚDE', multi:false, radio:['Bom! Consigo ir ao banheiro todos os dias','Médio! Vou um dia sim e outro não','Ruim! Vou ao banheiro 2x na semana e olhe lá...'] },
+  { pag:8, idx:2, pergunta:'Dentre esses tipos, qual se aproxima mais das suas fezes?', secao:'HISTÓRICO DE SAÚDE', multi:false },
+  // PÁG 9 — respostas: beliscar, preferencias, nao_gosta, fome, frutas, agua (radio)
+  { pag:9, idx:0, pergunta:'Você tem o hábito de beliscar - comer pequenas porções ao longo do dia. Se sim, o que e quais os horários mais frequentes?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:9, idx:1, pergunta:'Quais são suas preferências alimentares? Salgado ou doce? Qual seu prato ou alimento preferido?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:9, idx:2, pergunta:'Tem algo que você não goste / não coma de jeito nenhum / enjoe rápido?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:9, idx:3, pergunta:'Qual horário/refeição do dia que você tem mais fome ou vontade de comer?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:9, idx:4, pergunta:'Tem o hábito de comer frutas? Se sim, quais mais gosta?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:9, idx:5, pergunta:'Como é seu consumo de água?', secao:'HÁBITOS ALIMENTARES', multi:false, radio:['Menor que 1 litro (5 copos de 200 mL)','Entre 1 a 2 litros (5 a 10 copos de 200 mL)','Entre 2 a 3 litros (10 a 15 copos de 200 ml)','Maior que 3 litros (15 ou mais copos de 200 mL)'] },
+  // PÁG 10 — respostas: rotina, fds, alimento_quero, suplemento, metas (radio)
+  { pag:10, idx:0, pergunta:'Exemplifique sua rotina alimentar de 1 dia inteiro', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:10, idx:1, pergunta:'Aos finais de semana, sua alimentação muda muito? Me conte mais sobre e o que difere do meio da semana', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:10, idx:2, pergunta:'Tem algum alimento que você gostaria MUITO que tivesse em seu plano alimentar? Se sim, qual?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:10, idx:3, pergunta:'Você utiliza algum suplemento? Como whey, creatina, vitaminas, probióticos?', secao:'HÁBITOS ALIMENTARES', multi:false },
+  { pag:10, idx:null, pergunta:'Você gosta de estipular metas ou costuma se sentir pressionado com esse método?', secao:'ENCERRAMENTO', multi:false, metas:true },
+  // PÁG 11 — respostas: estilo (radio), comprometimento, expectativa
+  { pag:11, idx:0, pergunta:'Assinale o estilo que mais se aproxima do seu', secao:'ENCERRAMENTO', multi:false, radio:['Sou mais objetivo(a), direto ao ponto e quero entrar logo em ação.','Gosto mais de explicações, detalhes, entro em ação quando entendo o porquê do que estou prestes a fazer'] },
+  { pag:11, idx:1, pergunta:'Quanto você está disposto(a) e comprometido(a) com nosso acompanhamento?', secao:'ENCERRAMENTO', multi:false, comprometimento:true },
+  { pag:11, idx:null, pergunta:'Tem algo que você gostaria de me perguntar, reforçar ou dizer? O que você espera do nosso acompanhamento?', secao:'ENCERRAMENTO', multi:false, expectativa:true },
 ];
 
-const SECOES_META = {
-  dados:     { titulo: '👤 Dados Pessoais',        icon: '👤' },
-  objetivos: { titulo: '🎯 Objetivos',              icon: '🎯' },
-  rotina:    { titulo: '🏃 Rotina e Estilo de Vida',icon: '🏃' },
-  saude:     { titulo: '🏥 Histórico de Saúde',    icon: '🏥' },
-  alimentar: { titulo: '🥗 Hábitos Alimentares',   icon: '🥗' },
-  perfil:    { titulo: '💬 Perfil e Comprometimento',icon:'💬'  },
-};
-
-// Linhas de ruído para ignorar
-const RUIDO = [
-  /^https?:\/\//i, /google formulários/i, /este formulário/i, /este conteúdo/i,
-  /^\d+\/\d+$/, /^---PAGE---$/, /^\s*$/, /clique aqui/i, /adicionar arquivo/i,
-  /aqui começa sua nova versão/i, /obrigada pelas suas respostas/i,
-  /nos vemos em breve/i, /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}/,
-  /escala de bristol/i, /^tipo \d$/i
+// Opções de sono (para filtrar as marcadas)
+const SONO_OPCOES = [
+  'Tenho facilidade para começar a dormir',
+  'Tenho dificuldade para começar a dormir',
+  'Consigo manter o sono a noite toda',
+  'Acordo algumas vezes seja para fazer xixi ou por outros motivos',
+  'Durmo o número de horas que acredito serem o que preciso',
+  'Não durmo o número de horas que acredito serem o que preciso',
+  'Acordo descansado e revigorado',
+  'Não acordo descansado e revigorado',
+  'Passo o dia bem disposto',
+  'Passo o dia cansado e sonolento',
+  'Durmo usando medicamentos',
+  'Durmo usando suplementos (ex: melatonina)',
 ];
 
-function ehRuido(linha) {
-  return RUIDO.some(re => re.test(linha.trim()));
+// Blocos a ignorar (ruído do PDF)
+const RUIDO_BLOCOS = [
+  /^aqui começa/i, /^olá/i, /^este formulário/i, /^é fundamental/i,
+  /^22\/\d{2}\/\d{4}/, /^https?:\/\//i, /^\d+\/11$/, /^importante/i,
+  /^para consultas/i, /^para realizarmos/i, /^para o exame/i,
+  /^chegamos ao fim/i, /^este conteúdo/i, /^formulários$/i,
+  /^adicionar arquivo$/i, /^\s*$/
+];
+
+function ehRuido(txt) {
+  return RUIDO_BLOCOS.some(r => r.test(txt.trim()));
 }
 
-function parsearFormulario(texto) {
-  // Limpa e divide em linhas
-  const linhas = texto.split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 1 && !ehRuido(l));
-
-  const campos = {};
-
-  // Para cada pergunta conhecida, tenta encontrar a resposta
-  for (let pi = 0; pi < PERGUNTAS.length; pi++) {
-    const perg = PERGUNTAS[pi];
-    const proxPerg = PERGUNTAS[pi + 1];
-
-    // Acha o índice da linha que contém o fragmento da pergunta
-    const idxPerg = linhas.findIndex(l => l.toLowerCase().includes(perg.frag));
-    if (idxPerg === -1) continue;
-
-    // Coleta resposta: linhas entre essa pergunta e a próxima
-    let idxProx = linhas.length;
-    if (proxPerg) {
-      const idxP2 = linhas.findIndex((l, i) => i > idxPerg && l.toLowerCase().includes(proxPerg.frag));
-      if (idxP2 !== -1) idxProx = idxP2;
-    }
-
-    // Pega linhas de resposta (ignora a própria linha da pergunta e o '*' no final)
-    const respostas = linhas
-      .slice(idxPerg + 1, Math.min(idxPerg + 8, idxProx))
-      .map(l => l.replace(/\*$/, '').trim())
-      .filter(l => l.length > 0 && !l.toLowerCase().includes(perg.frag));
-
-    if (respostas.length > 0) {
-      campos[perg.k] = { pergunta: perg.frag, resposta: respostas, secao: perg.sec };
-    }
+// Calcula IMC e água a partir do campo "Peso e Altura"
+function calcularIMC(pesoAlturaStr) {
+  const nums = pesoAlturaStr.match(/[\d,\.]+/g);
+  if (!nums || nums.length < 2) return null;
+  const valores = nums.map(n => parseFloat(n.replace(',','.')));
+  // Identifica peso (>3) e altura (<3)
+  let peso = null, altura = null;
+  for (const v of valores) {
+    if (v > 3) peso = v;
+    else if (v > 0 && v <= 3) altura = v;
   }
-
-  return campos;
-}
-
-function bristolCor(tipo) {
-  const t = parseInt(tipo);
-  if (t <= 2) return 'background:#f4a0a0;color:#7a1a1a';
-  if (t <= 4) return 'background:#b8e4c4;color:#1a5c33';
-  return 'background:#f5d98a;color:#7a5f00';
-}
-
-function renderFormulario(campos) {
-  // Extrai dados-chave para o topo
-  const nome = (campos.nome?.resposta[0] || 'Paciente').trim();
-  const peso_altura = campos.peso_altura?.resposta[0] || '';
-  const profissao = campos.profissao?.resposta[0] || '';
-  const doenca = campos.doenca?.resposta || [];
-  const objetivo = campos.objetivo?.resposta || [];
-
-  // Monta chips do topo
-  const chips = [];
-  if (peso_altura) chips.push({ l: 'Peso/Altura', v: peso_altura });
-  if (campos.gordura?.resposta[0]) chips.push({ l: '% Gordura', v: campos.gordura.resposta[0] });
-  if (profissao) chips.push({ l: 'Profissão', v: profissao });
-  if (campos.nascimento?.resposta[0]) chips.push({ l: 'Nascimento', v: campos.nascimento.resposta[0] });
-
-  // Agrupa por seção
-  const porSecao = {};
-  Object.entries(campos).forEach(([k, v]) => {
-    if (!porSecao[v.secao]) porSecao[v.secao] = [];
-    porSecao[v.secao].push({ k, ...v });
-  });
-
-  // Labels amigáveis para cada chave
-  const LABELS = {
-    nome:'Nome', nascimento:'Data de nascimento', email:'E-mail', celular:'Celular',
-    profissao:'Profissão', endereco:'Endereço', peso_altura:'Peso e altura',
-    gordura:'% de gordura', nutri_antes:'Consultou nutricionista antes?',
-    motivo:'Por que decidiu mudar?', objetivo:'Objetivos', dificuldades:'Principais dificuldades',
-    comportamento:'Comportamento alimentar', trabalho:'Trabalho e horários',
-    atividade:'Nível de atividade', ativ_fisica:'Atividade física',
-    geladeira:'Local de trabalho (estrutura)', prepara:'Quem prepara as refeições?',
-    ambiente:'Ambiente familiar', hist_familia:'Histórico familiar',
-    doenca:'Doenças/condições', intolerancia:'Intolerâncias/alergias',
-    gases:'Alimentos problemáticos', alcool:'Álcool', fumante:'Fumante',
-    sono:'Sono', medicamento:'Medicamentos', antiacido:'Antiácidos',
-    intestino:'Funcionamento intestinal', fezes:'Tipo de fezes (Bristol)',
-    beliscar:'Beliscar', preferencia:'Preferências alimentares',
-    nao_gosta:'Não come/enjoa', fome:'Maior fome/horário', frutas:'Frutas',
-    agua:'Consumo de água', rotina_diet:'Rotina alimentar (dia típico)',
-    fds:'Fins de semana', suplemento:'Suplementos',
-    metas:'Metas', estilo:'Estilo de aprendizado', comprometimento:'Comprometimento',
-    expectativa:'Expectativas'
+  if (!peso || !altura) return null;
+  const imc = peso / (altura * altura);
+  let classif = '';
+  if (imc < 18.5) classif = 'Magreza (OMS)';
+  else if (imc < 25) classif = 'Eutrofia (peso normal) (OMS)';
+  else if (imc < 30) classif = 'Sobrepeso (OMS)';
+  else if (imc < 35) classif = 'Obesidade Grau I (OMS)';
+  else if (imc < 40) classif = 'Obesidade Grau II (OMS)';
+  else classif = 'Obesidade Grau III (OMS)';
+  const agua = Math.round(peso * 35);
+  const aguaL = (agua / 1000).toFixed(1).replace('.',',');
+  const aguaMl = agua.toLocaleString('pt-BR');
+  return {
+    linha: `IMC: ${imc.toFixed(2).replace('.',',')} — ${classif}`,
+    agua: `Ingestão de água recomendada: ${aguaMl} mL/dia (${aguaL} L/dia)`
   };
+}
 
-  // Campos a destacar em verde (positivos)
-  const POSITIVOS = ['nutri_antes','geladeira','ambiente','frutas'];
-  // Campos a destacar em alerta
-  const ALERTAS = ['doenca','intolerancia','gases','sono','intestino','fezes','hist_familia'];
+async function parsearFormulario(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const totalPags = pdf.numPages;
 
-  let secoesHTML = '';
-  ['dados','objetivos','rotina','saude','alimentar','perfil'].forEach(sec => {
-    const itens = porSecao[sec];
-    if (!itens || itens.length === 0) return;
-
-    const itensHTML = itens.map(item => {
-      const label = LABELS[item.k] || item.k;
-      const resp = item.resposta;
-      const isAlerta = ALERTAS.includes(item.k);
-      const isPositivo = POSITIVOS.includes(item.k);
-
-      // Bristol: exibe badge visual
-      if (item.k === 'fezes') {
-        const tipo = resp[0]?.replace(/\D/g, '') || '?';
-        return `<div class="item-qa">
-          <div class="item-pergunta">${label}</div>
-          <div class="item-resposta">
-            <span class="bristol-badge" style="${bristolCor(tipo)}">Tipo ${tipo}</span>
-            ${parseInt(tipo) <= 2 ? ' — Fezes ressecadas (constipação)' : parseInt(tipo) >= 5 ? ' — Fezes amolecidas' : ' — Dentro do padrão'}
-          </div>
-        </div>`;
+  // Extrai blocos de texto de cada página
+  const paginas = {};
+  for (let p = 1; p <= totalPags; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Agrupa itens por bloco (Y próximo = mesma linha)
+    const blocos = [];
+    let blocoAtual = '';
+    let lastY = null;
+    for (const item of content.items) {
+      const y = Math.round(item.transform[5]);
+      if (lastY !== null && Math.abs(y - lastY) > 8 && blocoAtual.trim()) {
+        blocos.push(blocoAtual.trim());
+        blocoAtual = '';
       }
-
-      // Resposta com múltiplas linhas → tags
-      if (resp.length > 1) {
-        const tags = resp.map(r => {
-          const cls = isAlerta ? 'rosa' : isPositivo ? 'verde' : '';
-          return `<span class="tag ${cls}">${r}</span>`;
-        }).join('');
-        return `<div class="item-qa">
-          <div class="item-pergunta">${label}</div>
-          <div class="tags-wrap">${tags}</div>
-        </div>`;
-      }
-
-      // Resposta simples
-      const cls = isAlerta ? 'alerta' : isPositivo ? 'destaque' : '';
-      return `<div class="item-qa">
-        <div class="item-pergunta">${label}</div>
-        <div class="item-resposta ${cls}">${resp[0] || '—'}</div>
-      </div>`;
-    }).join('');
-
-    secoesHTML += `
-      <div class="secao-card">
-        <h4>${SECOES_META[sec]?.titulo || sec}</h4>
-        ${itensHTML}
-      </div>`;
-  });
-
-  if (!secoesHTML) {
-    document.getElementById('aviso-form').textContent = '⚠️ Não foi possível estruturar o formulário automaticamente. Verifique se o PDF foi exportado do Google Forms com texto selecionável.';
-    document.getElementById('aviso-form').classList.add('show');
-    return;
+      blocoAtual += item.str;
+      lastY = y;
+    }
+    if (blocoAtual.trim()) blocos.push(blocoAtual.trim());
+    // Remove ruído
+    paginas[p] = blocos.filter(b => !ehRuido(b));
   }
 
-  document.getElementById('resultado-form').innerHTML = `
-    <div class="ficha-topo">
-      <h3>${nome}</h3>
-      <div class="sub">Formulário processado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
-      <div class="grid-chips">
-        ${chips.map(c => `<span class="chip"><b>${c.l}</b>${c.v}</span>`).join('')}
-        ${objetivo.map(o => `<span class="chip"><b>🎯</b>${o}</span>`).join('')}
-      </div>
-    </div>
-    ${secoesHTML}
-  `;
+  // Extrai campos especiais antes do mapeamento geral
+  // GORDURA: está na pág 3, antes de "Por que você decidiu mudar"
+  const pag3 = paginas[3] || [];
+  const idxMotivo3 = pag3.findIndex(b => b.toLowerCase().includes('por que você decidiu'));
+  let gordura = '(não informado)';
+  let exames = '(não enviado)';
+  if (idxMotivo3 > 0) {
+    // blocos antes do motivo: podem ter gordura
+    const antes = pag3.slice(0, idxMotivo3);
+    // gordura é o primeiro bloco se não for cabeçalho de seção
+    for (const b of antes) {
+      if (!/^rotina/i.test(b) && !/^dados/i.test(b) && !/^histórico/i.test(b) && !/^hábitos/i.test(b) && !/^encerramento/i.test(b)) {
+        gordura = b;
+        break;
+      }
+    }
+  }
+
+  // METAS: está na pág 10, radio entre Gosto de metas / Não gosto de metas / Outro
+  const pag10 = paginas[10] || [];
+  let metas = '(não respondido)';
+  const metasOpcoes = ['Gosto de metas', 'Não gosto de metas', 'Outro:'];
+  for (const op of metasOpcoes) {
+    if (pag10.some(b => b === op || b.startsWith(op))) {
+      metas = op;
+      break;
+    }
+  }
+
+  // MEDICAMENTO: na pág 7, é o bloco após as opções de sono que não é uma opção de sono e não é reposicao
+  const pag7 = paginas[7] || [];
+  let medicamento = '(não respondido)';
+  let reposicao = '(não respondido)';
+  // Acha índice do último bloco que é opção de sono
+  const sonoIdxs = pag7.map((b, i) => SONO_OPCOES.includes(b) ? i : -1).filter(i => i >= 0);
+  if (sonoIdxs.length > 0) {
+    const apos = pag7.slice(sonoIdxs[sonoIdxs.length - 1] + 1);
+    // Primeiro bloco após sono = medicamento, segundo = reposição
+    const naoVazios = apos.filter(b => b.trim() && !ehRuido(b));
+    if (naoVazios[0]) medicamento = naoVazios[0];
+    if (naoVazios[1]) reposicao = naoVazios[1];
+  }
+
+  // EXPECTATIVA: na pág 11, último bloco de resposta (antes das perguntas)
+  const pag11 = paginas[11] || [];
+  let comprometimento = '(não respondido)';
+  let expectativa = '(não respondido)';
+  // Comprometimento: número de 1-10
+  const numeros = '1 2 3 4 5 6 7 8 9 10'.split(' ');
+  // Bloco de comprometimento tem os números juntos; a resposta marcada precisa ser inferida
+  // Vamos pegar o bloco que contém apenas número(s) — padrão "5" ou "5\n6" etc.
+  const idxEstilo = pag11.findIndex(b =>
+    b.includes('Sou mais objetivo') || b.includes('Gosto mais de explicações')
+  );
+  if (idxEstilo >= 0) {
+    // Antes do estilo: pode haver resposta de comprometimento — mas no PDF ela vem APÓS o estilo
+    // Comprometimento vem depois do estilo no PDF
+    const aposEstilo = pag11.slice(idxEstilo + 1);
+    // Bloco de comprometimento: contém apenas dígitos ou "5 / 10" etc
+    for (const b of aposEstilo) {
+      if (/^\d{1,2}$/.test(b.trim()) || /^\d\s*\/\s*10/.test(b.trim()) || /^[1-9]$|^10$/.test(b.trim())) {
+        comprometimento = b.trim() + ' / 10';
+        break;
+      }
+    }
+    // Expectativa: texto livre após comprometimento
+    const idxComp = aposEstilo.findIndex(b => /^\d{1,2}$/.test(b.trim()) || /^\d\s*\/\s*10/.test(b.trim()));
+    if (idxComp >= 0 && aposEstilo[idxComp + 1]) {
+      const prox = aposEstilo[idxComp + 1];
+      if (!ehRuido(prox) && !/^importante/i.test(prox)) expectativa = prox;
+    }
+  }
+
+  // Agora mapeia cada pergunta
+  const resultado = {};
+  for (const perg of MAPA_PERGUNTAS) {
+    const pag = paginas[perg.pag] || [];
+
+    // Casos especiais já resolvidos acima
+    if (perg.ausente === 'gordura') { resultado[perg.pergunta] = gordura; continue; }
+    if (perg.ausente === 'exames') { resultado[perg.pergunta] = exames; continue; }
+    if (perg.medicamento) { resultado[perg.pergunta] = medicamento; continue; }
+    if (perg.reposicao) { resultado[perg.pergunta] = reposicao; continue; }
+    if (perg.metas) { resultado[perg.pergunta] = metas; continue; }
+    if (perg.comprometimento) { resultado[perg.pergunta] = comprometimento; continue; }
+    if (perg.expectativa) { resultado[perg.pergunta] = expectativa; continue; }
+
+    // Opções de radio: pegar a marcada (a que aparece no topo da página como resposta)
+    if (perg.radio) {
+      const marcada = pag.find(b => perg.radio.some(op => b.trim() === op || b.trim().startsWith(op)));
+      resultado[perg.pergunta] = marcada || '(não respondido)';
+      continue;
+    }
+
+    // Sono: pegar todas as opções marcadas (que aparecem no bloco)
+    if (perg.sonoOpcoes) {
+      const marcadas = pag.filter(b => SONO_OPCOES.includes(b.trim()));
+      resultado[perg.pergunta] = marcadas.length > 0 ? marcadas : ['(não respondido)'];
+      continue;
+    }
+
+    // Campo por índice
+    if (perg.idx !== null) {
+      // Filtra blocos que são cabeçalhos de seção
+      const blocosFiltrados = pag.filter(b =>
+        !/^(DADOS PESSOAIS|ROTINA E ESTILO|HISTÓRICO DE SAÚDE|HÁBITOS ALIMENTARES|ENCERRAMENTO)/i.test(b)
+      );
+
+      if (perg.multi && perg.ate !== undefined) {
+        // Múltipla escolha: pegar do idx até ate (exclusive)
+        const itens = blocosFiltrados.slice(perg.idx, perg.ate).filter(b => b.trim());
+        resultado[perg.pergunta] = itens.length > 0 ? itens : ['(não respondido)'];
+      } else {
+        const val = blocosFiltrados[perg.idx];
+        resultado[perg.pergunta] = val ? val.trim() : '(não respondido)';
+      }
+
+      // IMC: calcula e adiciona linhas extras
+      if (perg.imc && resultado[perg.pergunta]) {
+        const calc = calcularIMC(resultado[perg.pergunta]);
+        if (calc) resultado[perg.pergunta + '_imc'] = calc;
+      }
+    }
+  }
+
+  return resultado;
+}
+
+function renderFormulario(dados) {
+  const secoes = [
+    'DADOS PESSOAIS E INFORMAÇÕES BÁSICAS',
+    'ROTINA E ESTILO DE VIDA',
+    'HISTÓRICO DE SAÚDE',
+    'HÁBITOS ALIMENTARES',
+    'ENCERRAMENTO'
+  ];
+
+  // Agrupa perguntas por seção
+  const porSecao = {};
+  for (const perg of MAPA_PERGUNTAS) {
+    if (!porSecao[perg.secao]) porSecao[perg.secao] = [];
+    // Evita duplicatas (casos especiais já adicionados)
+    if (!porSecao[perg.secao].find(p => p.pergunta === perg.pergunta)) {
+      porSecao[perg.secao].push(perg);
+    }
+  }
+
+  // Extrai nome para o cabeçalho
+  const nome = dados['Nome completo'] || 'Paciente';
+  const data = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  // Monta cabeçalho
+  let html = `<div class="ficha-topo">
+    <h3>${nome}</h3>
+    <div class="sub">Formulário processado em ${data}</div>
+  </div>`;
+
+  for (const secao of secoes) {
+    const perguntas = porSecao[secao] || [];
+    if (!perguntas.length) continue;
+
+    let linhasSecao = '';
+
+    for (const perg of perguntas) {
+      const resp = dados[perg.pergunta];
+      if (resp === undefined) continue;
+
+      // Linha da pergunta
+      linhasSecao += `\n${perg.pergunta}\n`;
+
+      // Resposta
+      if (Array.isArray(resp)) {
+        for (const r of resp) linhasSecao += `${r}\n`;
+      } else {
+        linhasSecao += `${resp}\n`;
+      }
+
+      // IMC logo abaixo de Peso e Altura
+      if (perg.imc && dados[perg.pergunta + '_imc']) {
+        const calc = dados[perg.pergunta + '_imc'];
+        linhasSecao += `${calc.linha}\n`;
+        linhasSecao += `${calc.agua}\n`;
+      }
+    }
+
+    // Renderiza como card copiável
+    html += `
+    <div class="secao-card">
+      <h4>${secao}</h4>
+      <pre class="bloco-texto">${linhasSecao.trim()}</pre>
+      <button class="btn-copiar" onclick="copiarBloco(this)">📋 Copiar bloco</button>
+    </div>`;
+  }
+
+  // Análise de medicamentos (se houver)
+  const med = dados['Usa algum medicamento atualmente? Qual? Se sim, liste quais usa, doses, horários, frequência e desde quando usa'];
+  if (med && med !== '(não respondido)') {
+    html += `
+    <div class="secao-card" style="border-left: 3px solid var(--verde);">
+      <h4>⚠ ANÁLISE DE MEDICAMENTOS E SUPLEMENTOS</h4>
+      <p class="aviso-med">Medicamentos relatados: <strong>${med}</strong></p>
+      <p class="aviso-med" style="margin-top:8px;color:var(--texto-lt);font-size:.85rem;">Para análise completa (princípio ativo, interações medicamentosas e com nutrientes), cole o nome do medicamento no Claude ou consulte uma base farmacológica.</p>
+    </div>`;
+  }
+
+  document.getElementById('resultado-form').innerHTML = html;
+}
+
+function copiarBloco(btn) {
+  const pre = btn.previousElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = '✅ Copiado!';
+    setTimeout(() => btn.textContent = '📋 Copiar bloco', 2000);
+  });
 }
 
 async function processarFormulario() {
@@ -514,17 +652,17 @@ async function processarFormulario() {
   document.getElementById('loader-form').classList.add('show');
   document.getElementById('btn-form').disabled = true;
   try {
-    const texto = await lerPDF(file);
-    if (!texto || texto.length < 50) { mostrarErro('erro-form','Não foi possível extrair texto. O PDF pode ser imagem escaneada.'); return; }
-    const campos = parsearFormulario(texto);
-    renderFormulario(campos);
+    const dados = await parsearFormulario(file);
+    renderFormulario(dados);
   } catch(e) {
-    mostrarErro('erro-form','Erro ao ler o PDF: ' + e.message);
+    mostrarErro('erro-form', 'Erro ao processar formulário: ' + e.message);
+    console.error(e);
   } finally {
     document.getElementById('loader-form').classList.remove('show');
     document.getElementById('btn-form').disabled = false;
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // EXAMES
