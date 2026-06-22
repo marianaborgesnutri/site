@@ -1,8 +1,17 @@
-# Mari Nutrição · Análise Clínica
+# Consultório da Mari · Análise Clínica
 
-Site de análise clínica para nutricionista — formulários pré-consulta e exames laboratoriais via IA (Gemini).
+Ferramenta de análise clínica da nutricionista Mariana Borges — processamento de formulários pré-consulta e exames laboratoriais via IA.
 
-🔗 **Site:** https://fakefelps.github.io/mari-nutri/
+🔗 **Site:** https://marianaborgesnutri.github.io/site/
+
+---
+
+## Funcionalidades
+
+| Aba | O que faz |
+|---|---|
+| Formulário Pré-consulta | Upload do PDF exportado do Google Forms → análise estruturada por seções (dados pessoais, rotina, histórico, hábitos alimentares) com cálculo de IMC, água recomendada e análise de medicamentos |
+| Exames Laboratoriais | Upload do laudo → classificação em quartis (Q1–Q4) e tercis para tireoide (T1–T3), com badges coloridos e resumo de pontos de atenção clínica |
 
 ---
 
@@ -16,7 +25,7 @@ Abra o `index.html` e substitua na linha:
 const GEMINI_KEY = 'SUA_API_KEY_AQUI';
 ```
 
-pela sua key gerada em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (começa com `AIzaSy...`).
+pela sua key gerada em [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 
 ### 2. Ativar o GitHub Pages
 
@@ -28,15 +37,6 @@ O deploy acontece automaticamente a cada `push` na branch `main`.
 
 ---
 
-## Funcionalidades
-
-| Aba | O que faz |
-|---|---|
-| Formulário Pré-consulta | Upload do PDF → análise estruturada do paciente (objetivos, histórico, hábitos, pontos de atenção) |
-| Exames Laboratoriais | Upload do laudo → classificação em quartis/tercis com badges coloridos por seção |
-
----
-
 ## Stack
 
-- HTML/CSS/JS puro · GitHub Pages · Gemini 1.5 Flash API
+- HTML / CSS / JS puro · GitHub Pages · Gemini API
